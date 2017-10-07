@@ -1,4 +1,4 @@
-#!/usr/bin/p
+#!/usr/bin/env python3
 import ujson
 import os
 import logging
