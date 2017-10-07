@@ -1,9 +1,39 @@
+#!/usr/bin/p
 import ujson
+import os
+import logging
+from utils import t
 
 field = [[0 for i in range(30)] for j in range(30)]
 
+class GameObjectFactory:
+    """Factory for game objects.
+    """
+    def __init__(self, directory="objects"):
+        self._objects = {}
 
-class Square:  # field square objects
+        for subdir, dirs, files in os.walk(directory):
+            for f in files:
+                if f.endswith('json'):
+                    logging.info(f"Loading object description: {f}")
+                    try:
+                        path = os.path.join(subdir, f)
+                        obj = ujson.load(open(path, "r"))
+                        self.register(obj)
+                    except Exception as exc:
+                        logging.warning(f"Error loading {f}:\n\t{exc}")
+
+    def register(self, obj):
+        """Register unit configuration.
+        """
+        pass
+
+factory = GameObjectFactory()
+
+
+class Cell:
+    """Field cell objects.
+    """
     def __init__(self, x, y, content):
         self.x = x
         self.y = y
@@ -23,6 +53,7 @@ class GameObject:
                  speed=0):
         self.stackable = stackable
         self.speed = speed
+
 
 # place for content class
 
@@ -67,10 +98,3 @@ class Unit(GameObject):
         self.melee_damage = melee_damage
         self.x = x
         self.y = y
-
-
-def factory(name):  # some function to create units
-    data = ujson.load(open("fa.json", "r"))
-    dictionary = data[name]
-    unit = Unit(**dictionary)
-    return unit
