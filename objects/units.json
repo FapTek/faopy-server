@@ -1,5 +1,6 @@
 {
   "Player": {
+    "type": "unit",
     "direction": "up",
     "max_health": 1000,
     "health": 1000,

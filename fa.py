@@ -1,38 +1,71 @@
 #!/usr/bin/env python3
 import ujson
-# import os
-# import logging
-# from utils import t
+import os
+import logging
+import time
 
 field = [[0 for i in range(30)] for j in range(30)]
 
 
-# class GameObjectFactory:
-#     """Factory for game objects.
-#     """
-#
-#     def __init__(self, directory="objects"):
-#         self._objects = {}
-#
-#         for subdir, dirs, files in os.walk(directory):
-#             for f in files:
-#                 if f.endswith('json'):
-#                     logging.info(f"Loading object description: {f}")
-#                     try:
-#                         path = os.path.join(subdir, f)
-#                         obj = ujson.load(open(path, "r"))
-#                         self.register(obj)
-#                     except Exception as exc:
-#                         logging.warning(f"Error loading {f}:\n\t{exc}")
-#
-#     def register(self, obj):
-#         """Register unit configuration.
-#         """
-#         pass
-#
-#
-# factory = GameObjectFactory()
+class GameObjectFactory:
+    """Factory for game objects.
+    """
 
+    def __init__(self, directory="objects"):
+        self._objects = {
+        }
+
+        for f in os.listdir(directory):
+            if f.endswith('json'):
+                logging.info(f"Loading object description file: {f}")
+                try:
+                    path = os.path.join(directory, f)
+                    objects = ujson.load(open(path, "r"))
+                    for name, obj in objects.items():
+                        self.register(obj, name)
+                except Exception as exc:
+                    logging.warning(f"Error loading {f}:\n\t{exc}")
+
+    def register(self, obj, name):
+        """Register unit configuration.
+        """
+        self._objects[name] = obj
+
+
+factory = GameObjectFactory()
+
+class GameLoop:
+    def __init__(self, field, tps=32):
+        self.tick_number = 0
+        self.tps = tps
+        self.interval = 1 / tps
+        self._shedule = {}
+
+    def shedule():
+        pass
+
+    def tick():
+        pass
+
+    def push():
+        pass
+
+    def start_main_loop(self):
+        while True:
+            self.tick_number += 1
+            tick_start_time = time.time()
+            print(f"Tick started at {tick_start_time}")
+
+            self.tick()
+            self.push()
+
+            delta = tick_start_time - time.time()
+
+            if delta < self.interval:
+                time.sleep(self.interval - delta)
+
+
+# GameLoop(field).start_main_loop()
 
 class Cell:
     """Field cell objects.
@@ -65,7 +98,7 @@ class GameObject:
 
 
 class Healer(GameObject):
-    """Class for healing Gwound objects.
+    """Class for healing Ground objects.
 
     Attributes:
         power (int): Amount of healing a Healer gives per Tick
@@ -84,7 +117,7 @@ class Healer(GameObject):
 
 
 class Loader(GameObject):
-    """Class for loading Gwound objects.
+    """Class for loading Ground objects.
 
     Attributes:
         power (int): Amount of bullets a Loader gives per Tick
