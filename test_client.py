@@ -13,9 +13,9 @@ async def hello():
         await producer(websocket)
 
 
-
 async def consumer(websocket):
     pass
+
 
 async def producer(websocket):
     while True:
