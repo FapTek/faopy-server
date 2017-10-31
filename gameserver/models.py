@@ -34,6 +34,7 @@ class GameObjectFactory:
 
 factory = GameObjectFactory()
 
+
 class GameLoop:
     def __init__(self, field, tps=32):
         self.tick_number = 0
