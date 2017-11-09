@@ -1,29 +1,58 @@
 import asyncio
 import time
 import websockets
-import multiprocessing
 from multiprocessing import Process, Queue, Manager
 
 
-
 class Player:
-    def __init__(self, token, Q):
-        # TODO Bind game object with connection object
+    def __init__(self, Q):
+        # TODO Bind game object object
         self.game_object = None
         self.Q = Q  # Players multiprocessing input Queue
+        #  Data for sending to client
+        self.condition = ""  # Information about players health, bullets etc.
+        self.view = ""  # Players view zone
 
 
-def server(connections, output_q, Q):
+class BigDict:  # multiprocessing dictionary for player objects
+    def __init__(self):
+        self.dictionary = Manager().dict()
+
+    def appendPlayer(self, token, player):
+        self.dictionary[token] = {"flag": None, "player": player}
+
+    def setFlag(self, token, F):
+        # The only fucking way to update multiprocessing objects
+        dump = self.dictionary[token]
+        dump["flag"] = F
+        self.dictionary[token] = dump
+
+    def setPlayer(self, token, player):
+        # The only fucking way to update multiprocessing objects
+        dump = self.dictionary[token]
+        dump["flag"] = 1
+        dump["player"] = player
+        self.dictionary[token] = dump
+
+    def getFlag(self, token):
+        return self.dictionary[token]["flag"]
+
+    def getPlayer(self, token):
+        return self.dictionary[token]["player"]
+
+
+def server(bigDict, Q):
 
     async def handler(websocket, path):
 
         # Handshake
         token = await websocket.recv()  # Receiving players token
 
-        if token in connections.keys():  # Reconnect alertion
+        if token in bigDict.dictionary.keys():  # Reconnect alertion
             print("player {} reconnected".format(token))
         else:  # Saving new connection
-            connections[token] = Player(token, Q)
+            player = Player(Q)
+            bigDict.appendPlayer(token, player)
             print("player {} connected".format(token))
 
         await websocket.send("HI")  # Handshake end
@@ -39,7 +68,7 @@ def server(connections, output_q, Q):
 
             # starting two coroutines
             a = asyncio.ensure_future(consumer(websocket, token))
-            b = asyncio.ensure_future(producer(websocket))
+            b = asyncio.ensure_future(producer(websocket, token))
             done, pending = await asyncio.wait(
                 [a, b],
                 return_when=asyncio.FIRST_COMPLETED,
@@ -53,15 +82,17 @@ def server(connections, output_q, Q):
             message = await websocket.recv()
             print("Got message: {}".format(message))
             # appending to the clients' inputs Q
-            connections[token].Q.put([token, message])
+            bigDict.getPlayer(token).Q.put([message])
         except (websockets.exceptions.ConnectionClosed):
             print("CONNECTION CLOSED")
 
-    async def producer(websocket):
-        await asyncio.sleep(3)
-        if not output_q.empty():
-            tmp = output_q.get()
-            print(tmp)
+    async def producer(websocket, token):
+        if bigDict.getFlag(token):
+            bigDict.setFlag(token, 0)
+            player = bigDict.getPlayer(token)
+            C = str(player.condition)
+            V = str(player.view)
+            tmp = "condition: {}, view: {}".format(C, V)
             # Information handling here
             await websocket.send(str(tmp))
 
@@ -71,21 +102,24 @@ def server(connections, output_q, Q):
     asyncio.get_event_loop().run_forever()
 
 
-def tick(connections, output_q):
+def tick(bigDict):
     while True:
-        for i in connections.keys():
-            if not connections[i].Q.empty():
-                output_q.put(
-                    ["SOME RESPONSE FOR: {}".format(" ".join(connections[i].Q.get()))])
+        for token in bigDict.dictionary.keys():
+            if not bigDict.getPlayer(token).Q.empty():
+                data = bigDict.getPlayer(token).Q.get()
+                # TODO implement me
+                player = bigDict.getPlayer(token)
+                player.condition = data
+                player.view = data
+                bigDict.setPlayer(token, player)
 
 
 if __name__ == '__main__':
-    connections = Manager().dict()  # A dict for saving connections
-    output_q = Manager().Queue()  # multiprocessing Q for ticks' results
+    bigDict = BigDict()  # multiprocessing dict for players
     server = Process(name="server", target=server,
-                     args=(connections,
-                           output_q, Manager().Queue()))
-    tick = Process(name="tick", target=tick, args=(connections, output_q, ))
+                     args=(
+                           bigDict, Manager().Queue()))
+    tick = Process(name="tick", target=tick, args=(bigDict, ))
 
     server.start()
     tick.start()
