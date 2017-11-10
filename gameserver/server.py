@@ -126,7 +126,7 @@ def GERYCH_TICK(data, player):
 
 def tick(bigDict):
     while True:
-        now = time.clock()
+        now = time.time()
         for token in bigDict.dictionary.keys():
             if not bigDict.getPlayer(token).Q.empty():
                 data = bigDict.getPlayer(token).Q.get()
@@ -134,7 +134,7 @@ def tick(bigDict):
                 player = GERYCH_TICK(data, player)  # TODO implement me
                 bigDict.setPlayer(token, player)
         # process executes no more than 32 times per second
-        diff = now - time.clock()
+        diff = now - time.time()
         if diff < tickTime:
             time.sleep(tickTime - diff)
 
