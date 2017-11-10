@@ -2,6 +2,7 @@ import asyncio
 import time
 import websockets
 from multiprocessing import Process, Queue, Manager
+tickTime = 1 / 32
 
 
 class Player:
@@ -10,8 +11,18 @@ class Player:
         self.game_object = None
         self.Q = Q  # Players multiprocessing input Queue
         #  Data for sending to client
-        self.condition = ""  # Information about players health, bullets etc.
+        self.state = ""  # Information about players health, bullets etc.
         self.view = ""  # Players view zone
+
+
+def dictCheck(func):  # Decorator checking if token is in dict.
+    def validCheck(*args, **kvargs):
+        if args[1] in bigDict.dictionary.keys():
+            return func(*args, **kvargs)
+        else:
+            print("KEY ERROR {} : {}".format(func.__name__, args[1]))
+            return 0
+    return validCheck
 
 
 class BigDict:  # multiprocessing dictionary for player objects
@@ -21,22 +32,26 @@ class BigDict:  # multiprocessing dictionary for player objects
     def appendPlayer(self, token, player):
         self.dictionary[token] = {"flag": None, "player": player}
 
+    @dictCheck
     def setFlag(self, token, F):
-        # The only fucking way to update multiprocessing objects
+        # The only way to update multiprocessing objects
         dump = self.dictionary[token]
         dump["flag"] = F
         self.dictionary[token] = dump
 
+    @dictCheck
     def setPlayer(self, token, player):
-        # The only fucking way to update multiprocessing objects
+        # The only way to update multiprocessing objects
         dump = self.dictionary[token]
         dump["flag"] = 1
         dump["player"] = player
         self.dictionary[token] = dump
 
+    @dictCheck
     def getFlag(self, token):
         return self.dictionary[token]["flag"]
 
+    @dictCheck
     def getPlayer(self, token):
         return self.dictionary[token]["player"]
 
@@ -90,10 +105,12 @@ def server(bigDict, Q):
         if bigDict.getFlag(token):
             bigDict.setFlag(token, 0)
             player = bigDict.getPlayer(token)
-            C = str(player.condition)
+            C = str(player.state)
             V = str(player.view)
-            tmp = "condition: {}, view: {}".format(C, V)
+            tmp = "state: {}, view: {}".format(C, V)
+
             # Information handling here
+
             await websocket.send(str(tmp))
 
     # start_server = websockets.serve(handler, '10.147.17.206', 9190)
@@ -102,23 +119,31 @@ def server(bigDict, Q):
     asyncio.get_event_loop().run_forever()
 
 
+def GERYCH_TICK(data, player):
+    #  some GERYCH data handling
+    return player
+
+
 def tick(bigDict):
     while True:
+        now = time.clock()
         for token in bigDict.dictionary.keys():
             if not bigDict.getPlayer(token).Q.empty():
                 data = bigDict.getPlayer(token).Q.get()
-                # TODO implement me
                 player = bigDict.getPlayer(token)
-                player.condition = data
-                player.view = data
+                player = GERYCH_TICK(data, player)  # TODO implement me
                 bigDict.setPlayer(token, player)
+        # process executes no more than 32 times per second
+        diff = now - time.clock()
+        if diff < tickTime:
+            time.sleep(tickTime - diff)
 
 
 if __name__ == '__main__':
     bigDict = BigDict()  # multiprocessing dict for players
     server = Process(name="server", target=server,
                      args=(
-                           bigDict, Manager().Queue()))
+                         bigDict, Manager().Queue()))
     tick = Process(name="tick", target=tick, args=(bigDict, ))
 
     server.start()
