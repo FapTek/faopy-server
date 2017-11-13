@@ -1,8 +1,7 @@
 import asyncio
-import time
 import websockets
-from multiprocessing import Process, Queue, Manager
-from world import World
+from multiprocessing import Process, Manager
+from core.world import World
 tickTime = 1 / 32
 
 
