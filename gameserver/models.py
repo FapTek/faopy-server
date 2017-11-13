@@ -2,9 +2,47 @@
 import ujson
 import os
 import logging
-import time
+import enum
 
-field = [[0 for i in range(30)] for j in range(30)]
+
+class Direction(enum.Enum):
+    UP = (-1, 0)
+    DOWN = (1, 0)
+    LEFT = (0, -1)
+    RIGHT = (0, 1)
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __neg__(self):
+        return Direction(tuple(map(lambda x: -x, self.value)))
+
+
+class Field:
+    def __init__(self, size=10):
+        self._field = [[Cell(self, i, j) for j in range(size)] for i in range(size)]
+        self.objects = []
+        self.add(TestAI())
+        self.size = size
+
+    def add(self, obj, x=0, y=0):
+        if self._field[x][y].busy:
+            # TODO find a place for the object maybe?
+            return
+        obj.locate(self._field[x][y])
+        self._field[x][y].content.append(obj)
+        self.objects.append(obj)
+
+    def _debug(self):
+        os.system("clear")
+        for i in self._field:
+            for j in i:
+                if j.empty:
+                    print(" ", end="")
+                else:
+                    print(".", end="")
+            print()
 
 
 class GameObjectFactory:
@@ -35,58 +73,43 @@ class GameObjectFactory:
 factory = GameObjectFactory()
 
 
-class GameLoop:
-    def __init__(self, field, tps=32):
-        self.tick_number = 0
-        self.tps = tps
-        self.interval = 1 / tps
-        self._shedule = {}
-
-    def shedule():
-        pass
-
-    def tick():
-        pass
-
-    def push():
-        pass
-
-    def start_main_loop(self):
-        while True:
-            self.tick_number += 1
-            tick_start_time = time.time()
-            print(f"Tick started at {tick_start_time}")
-
-            self.tick()
-            self.push()
-
-            delta = tick_start_time - time.time()
-
-            if delta < self.interval:
-                time.sleep(self.interval - delta)
-
-
-# GameLoop(field).start_main_loop()
-
 class Cell:
     """Field cell objects.
     """
 
-    def __init__(self, x, y, content, up, down, left, right):
+    def __init__(self, field, x, y, content=None, borders=None):
+        self.field = field
         self.x = x
         self.y = y
-        self.content = content
-        self.up = up
-        self.down = down
-        self.left = left
-        self.right = right
+        self.content = content or list()
+        self.borders = borders or list()
+
+    def clear(self):
+        self.content = []
+
+    def neighbour(self, direction):
+        x = self.x + direction.x
+        y = self.y + direction.y
+        if max(x, y) < self.field.size and min(x, y) >= 0:
+            return self.field._field[x][y]
+
+    @property
+    def busy(self):
+        for obj in self.content:
+            if not obj.stackable:
+                return True
+        return False
+
+    @property
+    def empty(self):
+        return len(self.content) == 0
 
 
 class GameObject:
     """Base class for all objects on the field.
 
     Attributes:
-        stackable (bool): No more than one `stackable` object can be in a field cell.
+        stackable (bool): No more than one un`stackable` object can be in a field cell.
         speed (int): Amount of ticks needed for object to move. Immovable objects
             have a `speed` of zero.
      """
@@ -96,6 +119,28 @@ class GameObject:
                  speed=0):
         self.stackable = stackable
         self.speed = speed
+        self.cell = None
+
+    def locate(self, cell):
+        self.cell = cell
+
+    def tick(self):
+        pass
+
+    @property
+    def orphan(self):
+        return self.cell is None
+
+    def move(self, direction):
+        if not self.orphan:
+            if direction not in self.cell.borders:
+                target = self.cell.neighbour(direction)
+                if target:
+                    self.cell.content.remove(self)
+                    self.locate(target)
+                    target.content.append(self)
+                    return True
+        return False
 
 
 class Healer(GameObject):
@@ -106,7 +151,7 @@ class Healer(GameObject):
     """
 
     def __init__(self, power):
-        super().__init__(True, 0)
+        super().__init__()
         self.power = power
 
     def heal(self, unit):
@@ -126,7 +171,7 @@ class Loader(GameObject):
     """
 
     def __init__(self, power, bullet):
-        super().__init__(True, 0)
+        super().__init__()
         self.power = power
         self.bullet = bullet
 
@@ -134,11 +179,17 @@ class Loader(GameObject):
         if (unit.magazine) < (unit.max_magazine):
             if unit.bullet != self.bullet:
                 unit.magazine = 0
-                unit.bullet = bullet
+                unit.bullet = self.bullet
             if (unit.magazine + self.power <= unit.max_magazine):
                 unit.magazine += self.power
             else:
                 unit.magazine = unit.max_magazine
+
+
+class Weapon:
+    def __init__(self, damage, speed):
+        self.damage = damage
+        self.speed = speed
 
 
 class Bullet(GameObject):
@@ -152,7 +203,7 @@ class Bullet(GameObject):
                  damage=250,
                  speed=4):
         super().__init__(speed=speed)
-        self.damage = damage
+        self.type = Weapon(damage, speed)
 
 
 class Unit(GameObject):
@@ -168,12 +219,10 @@ class Unit(GameObject):
         max_magazine (int): Maximum amount of bullets of a unit. A unit can't pick up
             more bullets, but can spawn game with `magazine` > `max_magazine`.
         melee_damage (int): Amount of damage caused upon colliding with other unit.
-        x (int): x coordinate
-        y (int): y coordinate
     """
 
-    def __init__(self, bullet,  direction, health, magazine, max_health,  max_magazine,  melee_damage, speed, x, y):
-        super().__init__(False, speed)
+    def __init__(self, bullet,  direction, health, magazine, max_health,  max_magazine,  melee_damage, speed):
+        super().__init__(speed=speed)
         self.direction = direction
         self.max_health = max_health
         self.health = health
@@ -181,5 +230,19 @@ class Unit(GameObject):
         self.magazine = magazine
         self.max_magazine = max_magazine
         self.melee_damage = melee_damage
-        self.x = x
-        self.y = y
+
+
+class TestAI(Unit):
+    def __init__(self):
+        super().__init__(Bullet(),
+                         Direction.UP,
+                         10,
+                         10,
+                         100,
+                         100,
+                         100,
+                         10)
+
+    def tick(self):
+        if not self.move(self.direction):
+            self.direction = - self.direction

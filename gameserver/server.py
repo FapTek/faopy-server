@@ -2,6 +2,7 @@ import asyncio
 import time
 import websockets
 from multiprocessing import Process, Queue, Manager
+from world import World
 tickTime = 1 / 32
 
 
@@ -119,24 +120,24 @@ def server(bigDict, Q):
     asyncio.get_event_loop().run_forever()
 
 
-def GERYCH_TICK(data, player):
-    #  some GERYCH data handling
-    return player
-
-
-def tick(bigDict):
-    while True:
-        now = time.time()
-        for token in bigDict.dictionary.keys():
-            if not bigDict.getPlayer(token).Q.empty():
-                data = bigDict.getPlayer(token).Q.get()
-                player = bigDict.getPlayer(token)
-                player = GERYCH_TICK(data, player)  # TODO implement me
-                bigDict.setPlayer(token, player)
-        # process executes no more than 32 times per second
-        diff = now - time.time()
-        if diff < tickTime:
-            time.sleep(tickTime - diff)
+# def GERYCH_TICK(data, player):
+#     #  some GERYCH data handling
+#     return player
+#
+#
+# def tick(bigDict):
+#     while True:
+#         now = time.time()
+#         for token in bigDict.dictionary.keys():
+#             if not bigDict.getPlayer(token).Q.empty():
+#                 data = bigDict.getPlayer(token).Q.get()
+#                 player = bigDict.getPlayer(token)
+#                 player = GERYCH_TICK(data, player)  # TODO implement me
+#                 bigDict.setPlayer(token, player)
+#         # process executes no more than 32 times per second
+#         diff = now - time.time()
+#         if diff < tickTime:
+#             time.sleep(tickTime - diff)
 
 
 if __name__ == '__main__':
@@ -144,7 +145,9 @@ if __name__ == '__main__':
     server = Process(name="server", target=server,
                      args=(
                          bigDict, Manager().Queue()))
-    tick = Process(name="tick", target=tick, args=(bigDict, ))
+
+    world = World(bigDict)
+    tick = Process(name="tick", target=world.start_main_loop)
 
     server.start()
     tick.start()
