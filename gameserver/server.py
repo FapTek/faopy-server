@@ -40,10 +40,22 @@ class BigDict:  # multiprocessing dictionary for player objects
         self.dictionary[token] = dump
 
     @dictCheck
+    def incrFlag(self, token):
+        dump = self.dictionary[token]
+        dump["flag"] += 1
+        self.dictionary[token] = dump
+
+    @dictCheck
+    def decrFlag(self, token):
+        dump = self.dictionary[token]
+        dump["flag"] -= 1
+        self.dictionary[token] = dump
+
+    @dictCheck
     def setPlayer(self, token, player):
         # The only way to update multiprocessing objects
         dump = self.dictionary[token]
-        dump["flag"] = 1
+        dump["flag"] += 1
         dump["player"] = player
         self.dictionary[token] = dump
 
@@ -56,10 +68,10 @@ class BigDict:  # multiprocessing dictionary for player objects
         return self.dictionary[token]["player"]
 
 
-def server(bigDict, Q):
+def server(bigDict):
 
     async def handler(websocket, path):
-
+        Q = Manager().Queue()  # Player's input queue
         # Handshake
         token = await websocket.recv()  # Receiving players token
 
@@ -103,7 +115,7 @@ def server(bigDict, Q):
 
     async def producer(websocket, token):
         if bigDict.getFlag(token):
-            bigDict.setFlag(token, 0)
+            bigDict.decrFlag(token)
             player = bigDict.getPlayer(token)
             C = str(player.state)
             V = str(player.view)
@@ -143,7 +155,7 @@ if __name__ == '__main__':
     bigDict = BigDict()  # multiprocessing dict for players
     server = Process(name="server", target=server,
                      args=(
-                         bigDict, Manager().Queue()))
+                         bigDict, ))
 
     world = World(bigDict)
     tick = Process(name="tick", target=world.start_main_loop)
