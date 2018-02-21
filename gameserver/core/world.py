@@ -48,7 +48,7 @@ class Field:
             [Cell(self, i, j) for j in range(size)] for i in range(size)
         ]
         self.objects = []
-        self.add(objects.TestAI())
+        # self.add(objects.TestAI())
         self.size = size
 
     def add(self, obj, x=0, y=0):
@@ -60,14 +60,15 @@ class Field:
         self.objects.append(obj)
 
     def _debug(self):
-        os.system("clear")
-        for i in self._field:
-            for j in i:
-                if j.empty:
-                    print(" ", end="")
-                else:
-                    print(".", end="")
-            print()
+        pass
+        # os.system("clear")
+        # for i in self._field:
+        #     for j in i:
+        #         if j.empty:
+        #             print(" ", end="")
+        #         else:
+        #             print(".", end="")
+        #     print()
 
 
 class Cell:

@@ -69,9 +69,10 @@ class BigDict:  # multiprocessing dictionary for player objects
 
 
 def server(bigDict):
+    M = Manager()  # Multiprocessing manager for creating queues
 
     async def handler(websocket, path):
-        Q = Manager().Queue()  # Player's input queue
+        Q = M.Queue()  # Player's input queue
         # Handshake
         token = await websocket.recv()  # Receiving players token
 
@@ -129,26 +130,6 @@ def server(bigDict):
     start_server = websockets.serve(handler, 'localhost', 9000)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
-
-
-# def GERYCH_TICK(data, player):
-#     #  some GERYCH data handling
-#     return player
-#
-#
-# def tick(bigDict):
-#     while True:
-#         now = time.time()
-#         for token in bigDict.dictionary.keys():
-#             if not bigDict.getPlayer(token).Q.empty():
-#                 data = bigDict.getPlayer(token).Q.get()
-#                 player = bigDict.getPlayer(token)
-#                 player = GERYCH_TICK(data, player)  # TODO implement me
-#                 bigDict.setPlayer(token, player)
-#         # process executes no more than 32 times per second
-#         diff = now - time.time()
-#         if diff < tickTime:
-#             time.sleep(tickTime - diff)
 
 
 if __name__ == '__main__':
